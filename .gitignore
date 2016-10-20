@@ -18,3 +18,7 @@ nytprof.out
 *.o
 *.bs
 /_eumm/
+.Rproj.user
+*.Rproj
+*.Rhistory
+reference_databases/NCBI_Taxonomy/*
