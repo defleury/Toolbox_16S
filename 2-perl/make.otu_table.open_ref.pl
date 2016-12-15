@@ -71,10 +71,10 @@ my %OTU_data;
 
 #Get parameters
 my $lev_idx;
-if ($level eq "F") {$lev_idx = 0}
-elsif ($level eq "G") {$lev_idx = 1}
-elsif ($level eq "S") {$lev_idx = 2}
-elsif ($level eq "SS") {$lev_idx = 3}
+if ($level eq "F") {$lev_idx = 1}
+elsif ($level eq "G") {$lev_idx = 2}
+elsif ($level eq "S") {$lev_idx = 3}
+elsif ($level eq "SS") {$lev_idx = 4}
 else {die "ERROR: Unknown OTU clustering level: $level\n"}
 ##############################
 
@@ -117,14 +117,11 @@ while (<OTUMAP>) {
    chomp; my ($acc, @mapping) = split /\t/;
    my $tmp_otu = $mapping[$lev_idx];
    
-   #Generate proper OTU name, by pre-fixing with domain and level
-   my $curr_otu = "B_$level" . "_$tmp_otu";
-   
    #Skip if current sequence did not map at current level
-   next LINE if $curr_otu ~~ ["", " "];
+   next LINE if $tmp_otu ~~ ["", " ", "NA"];
    
-   #Skip if current sequence was not mapped to a "known" OTU
-   next LINE if $curr_otu eq "NA";
+   #Generate proper OTU name, by pre-fixing with domain and level
+   my $curr_otu = "B_$tmp_otu";
    
    #Get sample for current sequence
    my $sample = $Sequence_per_Sample{$acc};
