@@ -22,3 +22,6 @@ nytprof.out
 *.Rproj
 *.Rhistory
 reference_databases/NCBI_Taxonomy/*
+*.txt
+
+reference_databases/joao.reference.complete.uc.new.udb

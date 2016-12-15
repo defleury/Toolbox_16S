@@ -12,9 +12,10 @@
 #  <sample.mapping>              #input: sequence-to-sample mapping file
 #  <MAPseq.ncbitax>              #input: MAPseq taxonomy mapping file
 #  <MAPseq.otutax>               #input: MAPseq OTU mapping file
-#  <level>                       #input: MAPseq OTU mapping level (F, G, R, S, SS)
 #  <denovo.OTUs>                 #input: de novo OTU clustering file
-#  <tax.consensus>               #input: threshold for consensus taxonomy
+#  <level>                       #parameter: MAPseq OTU mapping level (F, G, R, S, SS)
+#  <tax.consensus>               #parameter: threshold for consensus taxonomy
+#  <min.otu_size>                #parameter: minimum OTU size (globally)
 #  <OTU.table>                   #output: combined OTU table
 #  <OTU.data>                    #output: combined OTU consensus taxonomies
 #
@@ -23,19 +24,21 @@
 ################################################################################
 
 use strict;
+use warnings;
 use Sort::Naturally;
 $|++;
 
 ##############################
 #Get input
-my $file_sample_mapping = $ARGV[0] or die;
-my $file_MAPseq_mapping_ncbitax = $ARGV[1] or die;
-my $file_MAPseq_mapping_otutax = $ARGV[2] or die;
-my $level = $ARGV[3] or die;
-my $file_OTU_denovo = $ARGV[4] or die;
-my $thresh_tax_consensus = $ARGV[5] or die;
-my $file_OTU_table = $ARGV[6] or die;
-my $file_OTU_data = $ARGV[7] or die;
+my $file_sample_mapping = shift @ARGV or die;
+my $file_MAPseq_mapping_ncbitax = shift @ARGV or die;
+my $file_MAPseq_mapping_otutax = shift @ARGV or die;
+my $file_OTU_denovo = shift @ARGV or die;
+my $level = shift @ARGV or die;
+my $thresh_tax_consensus = shift @ARGV or die;
+my $thresh_min_otu_size = shift @ARGV or die;
+my $file_OTU_table = shift @ARGV or die;
+my $file_OTU_data = shift @ARGV or die;
 ##############################
 
 ##############################
@@ -90,10 +93,10 @@ print "done.\n";
 print "Reading sequence taxonomy...";
 open (SEQTAX, $file_MAPseq_mapping_ncbitax) or die;
 while (<SEQTAX>) {
-   chomp; my ($acc, $domain, @tax, $consensus_tax) = split /\t/;
+   chomp; my ($acc, @tax, $consensus_tax) = split /\t/;
    foreach my $lev (@tax_levels) {
       my $tax = shift @tax;
-      last if $tax ~~ ["", " "];
+      last if $tax ~~ ["", " ", "NA"];
       #Fix taxonomic artifact "PHY_Coriobacteriia"
       $tax =~ s/PHY_Coriobacteriia/Actinobacteria/;
       $seq_tax{$acc}{$lev} = $tax
@@ -112,7 +115,10 @@ open(OTUMAP, "$file_MAPseq_mapping_otutax") or die;
 LINE:
 while (<OTUMAP>) {
    chomp; my ($acc, @mapping) = split /\t/;
-   my $curr_otu = $mapping[$lev_idx];
+   my $tmp_otu = $mapping[$lev_idx];
+   
+   #Generate proper OTU name, by pre-fixing with domain and level
+   my $curr_otu = "B_$level" . "_$tmp_otu";
    
    #Skip if current sequence did not map at current level
    next LINE if $curr_otu ~~ ["", " "];
@@ -190,7 +196,7 @@ foreach my $otu (keys %OTU_Mapping) {
    
    next OTU unless $size > 0;
    
-   my $tax_string = "Bacteria";
+   my $tax_string = "";
    
    #Get consensus taxonomy
    LEVEL:
@@ -206,6 +212,8 @@ foreach my $otu (keys %OTU_Mapping) {
          else {last LEVEL}
       }
    }
+   
+   $tax_string =~ s/^;//;
    
    $OTU_data{$otu}{Consensus_Taxonomy} = $tax_string;
 }
@@ -226,10 +234,13 @@ print DATA "OTU_name\tsize\tconsensus_taxonomy\n";
 #Loop through OTUs and export data
 print "Writing OTU table, OTU data and OTU file...";
 foreach my $otu (nsort keys %OTU_Mapping) {
+   #Skip current OTU if too few global reads attracted
+   next unless $OTU_data{$otu}{Size} >= $thresh_min_otu_size;
+   
    #Export to OTU table
    print TABLE "$otu";
    foreach my $smpl (@ordered_samples) {
-      my $count = 0 + $OTU_Mapping{$otu}{Samples}{$smpl};
+      my $count = ($OTU_Mapping{$otu}{Samples}{$smpl} || 0);
       print TABLE "\t$count"
    }
    print TABLE "\n";
