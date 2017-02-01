@@ -7,6 +7,11 @@
 #This script generates an open-reference OTU table and corresponding OTU
 #taxonomic data from MAPseq output and a combined representative sequence file.
 #
+#Importantly, this script will summarize (reference) OTUs which have identical
+#aligned representative sequences in the region of interest. Biologically, such
+#OTUs cannot be considered distinct at the level of resolution defined by the
+#alignment flanking positions.
+#
 #Usage:
 #./make.otu_table.open_ref.with_reps.pl
 #  <sample.mapping>              #input: sequence-to-sample mapping file
@@ -122,6 +127,56 @@ print "done.\n";
 ##############################
 
 ##############################
+#Read de novo OTU representative sequences
+print "Reading reference OTU representative sequences...";
+my %OTU_rep;
+my %ref_seen_seq;
+my %merge_OTUs;
+open(REPREF, $file_rep_ref) or die;
+REPSEQ:
+while (my $line = <REPREF>) {
+   chomp $line;
+   if ($line =~ /^>/) {
+      $line =~ s/^>//;
+      my $tmp_seq = <REPREF>; chomp $tmp_seq;
+      #Prune reference rep seq to current "correct" flanking positions
+      my $rep_seq = substr $tmp_seq, $cut_ref_start, $cut_ref_end - $cut_ref_start;
+      if (exists $ref_seen_seq{$rep_seq}) {
+            $merge_OTUs{$line} = $ref_seen_seq{$rep_seq};
+            next REPSEQ;
+      }
+      $OTU_rep{$line} = $rep_seq;
+      $ref_seen_seq{$rep_seq} = $line;
+   }
+}
+close REPREF;
+print "done.\n";
+##############################
+
+##############################
+#Read de novo OTU representative sequences
+print "Reading de novo OTU representative sequences...";
+open(REPDN, $file_rep_denovo) or die;
+REPSEQ:
+while (my $line = <REPDN>) {
+   chomp $line;
+   if ($line =~ /^>/) {
+      $line =~ s/^>//;
+      my @fields = split / / => $line;
+      my $rep_seq = <REPDN>; chomp $rep_seq;
+      if (exists $ref_seen_seq{$rep_seq}) {
+            $merge_OTUs{$fields[0]} = $ref_seen_seq{$rep_seq};
+            next REPSEQ;
+      }
+      $OTU_rep{$fields[0]} = $rep_seq;
+      $ref_seen_seq{$rep_seq} = $fields[0];
+   }
+}
+close REPDN;
+print "done.\n";
+##############################
+
+##############################
 #Read current reference OTU mapping
 #=> filter by taxonomy (remove archaea, eukarya and unclassified at domain level)
 ##############################
@@ -137,6 +192,9 @@ while (<OTUMAP>) {
    
    #Generate proper OTU name, by pre-fixing with domain and level
    my $curr_otu = "B_$tmp_otu";
+   
+   #Check if current OTU has to be merged into another by identical representative
+   if (exists $merge_OTUs{$curr_otu}) {my $tmp_otu = $merge_OTUs{$curr_otu}; $curr_otu = $tmp_otu}
    
    #Get sample for current sequence
    my $sample = $Sequence_per_Sample{$acc};
@@ -162,6 +220,9 @@ LINE:
 while (my $otu_name = <DNMAP>) {
    if ($otu_name =~ /^>/) {
       chomp $otu_name; $otu_name =~ s/^>//;
+      
+      #Replace current OTU identifier with alternative identifier if sequence is identical
+      if (exists $merge_OTUs{$otu_name}) {my $tmp_otu = $merge_OTUs{$otu_name}; $otu_name = $tmp_otu}
       
       #Preallocate size counter
       my $size = 0;
@@ -229,42 +290,6 @@ foreach my $otu (keys %OTU_Mapping) {
    
    $OTU_data{$otu}{Consensus_Taxonomy} = $tax_string;
 }
-print "done.\n";
-##############################
-
-##############################
-#Read de novo OTU representative sequences
-print "Reading de novo OTU representative sequences...";
-my %OTU_rep;
-open(REPDN, $file_rep_denovo) or die;
-while (my $line = <REPDN>) {
-   chomp $line;
-   if ($line =~ /^>/) {
-      $line =~ s/^>//;
-      my @fields = split / / => $line;
-      my $rep_seq = <REPDN>; chomp $rep_seq;
-      $OTU_rep{$fields[0]} = $rep_seq;
-   }
-}
-close REPDN;
-print "done.\n";
-##############################
-
-##############################
-#Read de novo OTU representative sequences
-print "Reading reference OTU representative sequences...";
-open(REPREF, $file_rep_ref) or die;
-while (my $line = <REPREF>) {
-   chomp $line;
-   if ($line =~ /^>/) {
-      $line =~ s/^>//;
-      my $tmp_seq = <REPREF>; chomp $tmp_seq;
-      #Prune reference rep seq to current "correct" flanking positions
-      my $rep_seq = substr $tmp_seq, $cut_ref_start, $cut_ref_end - $cut_ref_start;
-      $OTU_rep{$line} = $rep_seq;
-   }
-}
-close REPREF;
 print "done.\n";
 ##############################
 
