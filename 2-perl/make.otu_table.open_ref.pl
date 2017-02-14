@@ -60,7 +60,7 @@ sub largest_value (\%) {
 
 ##############################
 #Preallocate taxonomic levels
-my @tax_levels = ("phylum", "class", "order", "family", "genus", "species");
+my @tax_levels = ("kingdom", "phylum", "class", "order", "family", "genus", "species");
 
 #Preallocate data structures
 my %Sequence_per_Sample;
