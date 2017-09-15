@@ -81,8 +81,8 @@ while (<SEQTAX>) {
       #=> these are actually Actinobacteria...
       $tax =~ s/PHY_Coriobacteriia/Actinobacteria/;
       #Relabel "NA" as "Unclassified"
-      if ($tax eq 'NA') {$Sample_Tax{$lev}{Unclassified}++}
-      else {$Sample_Tax{$lev}{$tax}++; $Taxa{$lev}{$tax}++}
+      if ($tax eq 'NA') {$Sample_Tax{$lev}{$smpl}{Unclassified}++}
+      else {$Sample_Tax{$lev}{$smpl}{$tax}++; $Taxa{$lev}{$tax}++}
    }
 }
 close SEQTAX;
@@ -114,7 +114,7 @@ foreach my $lev (@tax_levels) {
       #Export to taxa table
       print TABLE "$tax";
       foreach my $smpl (@ordered_samples) {
-         my $count = ($Sample_Tax{$lev}{$tax} || 0);
+         my $count = ($Sample_Tax{$lev}{$smpl}{$tax} || 0);
          print TABLE "\t$count"
       }
       print TABLE "\n";
