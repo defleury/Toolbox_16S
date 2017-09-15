@@ -8,7 +8,17 @@
 #scores file and a list of removed sequences.
 #
 #Usage:
-#filter.infernal.pl <align.log> <align.tmp.sto> <cut_start> <cut_end> <output.scores> <output.removed> <output.sto>
+#filter.infernal.pl
+#  <align.log>          #input: raw alignment log file
+#  <align.tmp.sto>      #input: raw alignment sto file
+#  <cut.start>          #parameter: alignment pruning start position (relative to Infernal model)
+#  <cut.end>            #parameter: alignment pruning end position
+#  <max.inserts>        #parameter: maximum number of inserts accepted
+#  <max.N>              #parameter: maximum number of N characters accepted
+#  <max.gaps>           #parameter: maximum number of gap characters accepted
+#  <output.scores>      #output: alignment scores file
+#  <output.removed>     #output: removed sequences
+#  <output.sto>         #output: alignment in stockholm format
 #
 #sebastian.schmidt@embl.de 2016-12-07
 ################################################################################
@@ -17,13 +27,16 @@
 use strict;
 
 #Get input
-my $file_align_log = $ARGV[0] or die;
-my $file_align_tmp = $ARGV[1] or die;
-my $cut_start = $ARGV[2] or die;
-my $cut_end = $ARGV[3] or die;
-my $file_scores = $ARGV[4] or die;
-my $file_removed = $ARGV[5] or die;
-my $file_sto = $ARGV[6] or die;
+my $file_align_log = shift @ARGV or die;
+my $file_align_tmp = shift @ARGV or die;
+my $cut_start = shift @ARGV or die;
+my $cut_end = shift @ARGV or die;
+my $max_inserts = shift @ARGV or die;
+my $max_N = shift @ARGV or die;
+my $max_gaps = shift @ARGV or die;
+my $file_scores = shift @ARGV or die;
+my $file_removed = shift @ARGV or die;
+my $file_sto = shift @ARGV or die;
 
 #Set parameters for flanking
 my $start = $cut_start - 1;
@@ -64,8 +77,8 @@ while (<SEQ>) {
   my ($acc, $alignment) = split /\t/;
   my $tmp = $alignment;
   
-  #Skip sequences with ³10% unaligned bases (i.e., >=30 insertions)
-  if (($tmp =~ tr/acgun//) >= 30) {print REMOVED "$acc\tinsertions\t$tmp\n"; next LINE}
+  #Skip sequences with too many unaligned bases (i.e., >= max.inserts)
+  if (($tmp =~ tr/acgun//) >= $max_inserts) {print REMOVED "$acc\tinsertions\t$tmp\n"; next LINE}
   
   #Remove lower case letters (insertions in sequence)
   $alignment =~ s/[acgun]//g;
@@ -77,12 +90,16 @@ while (<SEQ>) {
   #Prune alignment
   my $pruned = substr $alignment, $start, $length;
   
-  #Skip if sequence is too gappy (>20% gaps)
+  #Skip if sequence is too gappy
   $tmp = $pruned;
-  if (($tmp =~ tr/-//) >= (0.2 * $length)) {print REMOVED "$acc\tgaps\t$pruned\n"; next LINE}
+  if (($tmp =~ tr/-//) >= $max_gaps) {print REMOVED "$acc\tgaps\t$pruned\n"; next LINE}
   
   #Skip if sequence has two (or more) consecutive Ns
-  if ($pruned =~ /N-*N/) {print REMOVED "$acc\tNs\t$pruned\n"; next LINE}
+  if ($pruned =~ /N-*N/) {print REMOVED "$acc\tconsecutive_Ns\t$pruned\n"; next LINE}
+  
+  #Skip if sequence has too many Ns
+  $tmp = $pruned;
+  if (($tmp =~ tr/N//) >= $max_N) {print REMOVED "$acc\tN_count\t$pruned\n"; next LINE}
   
   print ALIGNED "$acc $pruned\n";
 }
