@@ -15,7 +15,7 @@
 ################################################################################
 ################################################################################
 source("https://raw.githubusercontent.com/defleury/Toolbox_16S/master/R/function.alpha_diversity.R")
-rarefaction <- function(count.table, steps=c(seq(0.01, 0.09, by=0.01), seq(0.1, 0.9, by=0.1)), iterations=100) {
+rarefaction <- function(count.table, steps=c(seq(0.01, 0.09, by=0.01), seq(0.1, 0.9, by=0.1), 0.99), iterations=100) {
   #Get current sample sizes
   size.sample <- colSums(count.table)
   #Get overall taxa count
@@ -47,13 +47,6 @@ rarefaction <- function(count.table, steps=c(seq(0.01, 0.09, by=0.01), seq(0.1, 
       N.obs = curr.N_obs
     ))
   }
-  
-  #Add N.obs at 100% counts
-  results.rarefy <- rbind(results.rarefy, data.frame(
-    sample.name = colnames(count.table),
-    N.seq = colSums(count.table),
-    N.obs = colSums(count.table > 0)
-  ))
   
   #Return
   results.rarefy
