@@ -51,6 +51,42 @@ rarefaction <- function(count.table, steps=c(seq(0.01, 0.09, by=0.01), seq(0.1, 
   #Return
   results.rarefy
 }
+
+Hill_Diversity.rarefied <- function(count.table, size=1000, iterations=100, q.H=c(0, 1, 2)) {
+  #Get current sample sizes
+  size.sample <- colSums(count.table)
+  #Get overall taxa count
+  n.tax <- nrow(count.table)
+  
+  #Get relative counts
+  count.table <- as.matrix(count.table)
+  ct.rel <- as.matrix(t(t(count.table) / size.sample))
+  
+  #Preallocate
+  D.rarefied <- as.data.frame(matrix(nrow=length(size.sample), ncol=4))
+  colnames(D.rarefied) <- c("sample.name", paste0("q.", q.H))
+  D.rarefied[, "sample.name"] <- names(size.sample)
+  
+  #Iteratively generate count tables
+  curr.ct <- apply(ct.rel, 2, function(p.vec) {replicate(iterations, table(sample(1:n.tax, size=size, prob=p.vec, replace=T)) / size)})
+  #Iterate through q values and calculate rarefied diversities
+  for (q.i in q.H) {
+    #Handle special cases of q=0 (richness only) and q=1 (exp(Shannon))
+    if (q.i == 0) {
+      curr.D <- sapply(curr.ct, function(x) {mean(sapply(x, length))})
+    } else if (q.i == 1) {
+      curr.D <- sapply(curr.ct, function(x) {mean(sapply(x, function(vec) {exp(shannon(vec))}))})
+    } else {
+      curr.D <- sapply(curr.ct, function(x) {mean(sapply(x, function(vec) {sum(vec ^ q.i) ^ (1/(1-q.i))}))})
+    }
+    #Replace values for undersampled samples with NA
+    curr.D[size.sample < size] <- NA
+    #Store in results frame
+    D.rarefied[, which(q.H == q.i)+1] <- curr.D
+  }
+  
+  D.rarefied
+}
 ################################################################################
 ################################################################################
 
