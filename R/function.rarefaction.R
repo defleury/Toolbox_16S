@@ -70,7 +70,7 @@ Hill_Diversity.rarefied <- function(count.table, size=1000, iterations=100, q.H=
   D.rarefied[, "sample.name"] <- names(size.sample)
   
   #Iteratively generate count tables
-  curr.ct <- alply(ct.rel, 2, function(p.vec) {replicate(iterations, table(sample(1:n.tax, size=size, prob=p.vec, replace=T)) / size)})
+  curr.ct <- alply(ct.rel, 2, function(p.vec) {replicate(iterations, table(sample(1:n.tax, size=size, prob=p.vec, replace=T)) / size, simplify=FALSE)})
   #Iterate through q values and calculate rarefied diversities
   for (q.i in q.H) {
     #Handle special cases of q=0 (richness only) and q=1 (exp(Shannon))
